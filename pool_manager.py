@@ -363,13 +363,18 @@ def generate_new_pool(pool_data):
         "new_stocks": new_stocks['code'].tolist()
     }
     
-    # 添加留存股（重置入场价为当前价）
+    # 添加留存股（保留原始入场价和累计涨幅，不从头计算）
     for s in top2:
         retained_stock = s.copy()
         retained_stock["is_retained"] = True
-        retained_stock["entry_price"] = s["current_price"]
-        retained_stock["period_return_pct"] = 0.0
-        retained_stock["entry_date"] = datetime.now().strftime('%Y-%m-%d')
+        # 保留原始入场价，不重置为当前价
+        # entry_price 保持原值不变
+        # period_return_pct 保持原值不变（上期的累计涨幅带过来）
+        # entry_date 保持原值不变（原始入场日期）
+        # 记录上期涨幅，便于展示
+        retained_stock["prev_period_return_pct"] = s["period_return_pct"]
+        # 记录留存期数（第几次被留存）
+        retained_stock["retained_count"] = s.get("retained_count", 0) + 1
         new_pool["stocks"].append(retained_stock)
     
     # 添加新股
@@ -400,6 +405,10 @@ def generate_new_pool(pool_data):
     
     print(f"\n第 {current_period + 1} 期票池已生成：")
     print(f"  上期留存: {len(top2)} 只 (涨幅前2)")
+    for i, s in enumerate(top2):
+        print(f"    留存{i+1}: {s['name']}({s['code']}) "
+              f"入场价:{s['entry_price']} 现价:{s['current_price']} "
+              f"累计涨幅:{s['period_return_pct']:+.2f}%")
     print(f"  新进股票: {len(new_stocks)} 只")
     print(f"  合计: {len(new_pool['stocks'])} 只")
     
@@ -418,10 +427,18 @@ def get_pool_summary():
     
     total_return = 0
     for i, s in enumerate(current["stocks"]):
-        tag = "⭐留存" if s["is_retained"] else "  新股"
+        if s["is_retained"]:
+            tag = "⭐留存"
+            entry_info = f"入场:{s['entry_price']}(原始)"
+            ret_info = f"累计收益:{s['period_return_pct']:+.2f}%"
+            if "prev_period_return_pct" in s:
+                ret_info += f" (上期:{s['prev_period_return_pct']:+.2f}%)"
+        else:
+            tag = "  新股"
+            entry_info = f"入场:{s['entry_price']}"
+            ret_info = f"收益:{s['period_return_pct']:+.2f}%"
         print(f"{tag} {i+1:2d}. {s['name']}({s['code']}) "
-              f"现价:{s['current_price']} 入场:{s['entry_price']} "
-              f"收益:{s['period_return_pct']:+.2f}%")
+              f"现价:{s['current_price']} {entry_info} {ret_info}")
         total_return += s["period_return_pct"]
     
     avg_return = total_return / len(current["stocks"])

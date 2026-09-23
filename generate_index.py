@@ -70,17 +70,38 @@ def generate_status_tab(pool_data):
         retained_tag = '<span class="tag retained">留存</span>' if s.get('is_retained') else ''
         new_tag = '<span class="tag new">新进</span>' if not s.get('is_retained') else ''
 
+        # 留存股显示累计涨幅和历史信息
+        if s.get('is_retained'):
+            ret_label = '累计收益'
+            entry_label = f'<span class="entry-original">¥{s["entry_price"]:.2f}</span>'
+            prev_ret = ''
+            if 'prev_period_return_pct' in s:
+                prev_ret = f'<div class="prev-return">上期: {s["prev_period_return_pct"]:+.2f}%</div>'
+            retained_count_badge = ''
+            if s.get('retained_count', 0) > 0:
+                retained_count_badge = f' <span class="tag retained-count">留存{s["retained_count"]}次</span>'
+        else:
+            ret_label = '本期收益'
+            entry_label = f'¥{s["entry_price"]:.2f}'
+            prev_ret = ''
+            retained_count_badge = ''
+
         rows_html += f'''
         <tr>
             <td class="rank-col">{rank_badge}{i+1}</td>
             <td class="code-col">{s['code']}</td>
             <td class="name-col">
                 <strong>{s['name']}</strong>
-                {retained_tag}{new_tag}
+                {retained_tag}{new_tag}{retained_count_badge}
                 <div class="market-label">{s['market']}</div>
             </td>
             <td class="price-col">¥{s['current_price']:.2f}</td>
-            <td class="return-col {ret_class}">{ret_sign}{ret_pct:.2f}%</td>
+            <td class="entry-col">{entry_label}</td>
+            <td class="return-col {ret_class}">
+                <div class="ret-main">{ret_sign}{ret_pct:.2f}%</div>
+                <div class="ret-label">{ret_label}</div>
+                {prev_ret}
+            </td>
             <td class="potential-col">+{s['potential_pct']}%</td>
             <td class="target-col">¥{s['target_price']:.2f}</td>
             <td class="buy-col">¥{s['buy_price']:.2f}</td>
@@ -132,7 +153,8 @@ def generate_status_tab(pool_data):
                             <th class="code-col">代码</th>
                             <th class="name-col">名称</th>
                             <th class="price-col">现价</th>
-                            <th class="return-col">本期收益</th>
+                            <th class="entry-col">入场价</th>
+                            <th class="return-col">收益</th>
                             <th class="potential-col">半年潜力</th>
                             <th class="target-col">目标价</th>
                             <th class="buy-col">买入价</th>
@@ -310,21 +332,41 @@ def generate_report_tab(pool_data):
         potential_logic = s.get('potential_logic', '暂无分析')
         tech_logic = s.get('tech_logic', '暂无技术面分析')
 
+        # 留存股特殊标记
+        retained_badge = ''
+        retained_info = ''
+        if s.get('is_retained'):
+            retained_badge = '<span class="retained-badge-card">⭐ 留存股</span>'
+            prev_ret_text = ''
+            if 'prev_period_return_pct' in s:
+                prev_ret_text = f'<div class="retained-history">上期涨幅: {s["prev_period_return_pct"]:+.2f}%</div>'
+            retained_count_text = ''
+            if s.get('retained_count', 0) > 0:
+                retained_count_text = f' · 已留存{s["retained_count"]}期'
+            retained_info = f'<div class="retained-info-block"><span class="retained-entry">原始入场价: ¥{s["entry_price"]:.2f}</span>{retained_count_text}</div>{prev_ret_text}'
+            ret_label = '累计收益'
+        else:
+            retained_badge = ''
+            retained_info = ''
+            ret_label = '本期收益'
+
         cards_html += f'''
-        <div class="stock-card">
+        <div class="stock-card{' retained-card' if s.get('is_retained') else ''}">
             <div class="stock-card-header">
                 <div class="stock-rank">#{i+1}</div>
                 <div class="stock-title">
-                    <h4>{s['name']}</h4>
+                    <h4>{s['name']} {retained_badge}</h4>
                     <span class="stock-code">{s['code']}</span>
                     <span class="market-tag">{s['market']}</span>
                 </div>
                 <div class="stock-price">
                     <div class="price">¥{s['current_price']:.2f}</div>
                     <div class="change {ret_class}">{ret_sign}{ret_pct:.2f}%</div>
+                    <div class="ret-label-card">{ret_label}</div>
                 </div>
             </div>
             <div class="stock-card-body">
+                {retained_info}
                 <div class="info-grid">
                     <div class="info-item">
                         <span class="info-label">综合评分</span>
@@ -832,6 +874,25 @@ body {{
 
 .tag.new {{ background: #e6f7ff; color: #1890ff; }}
 .tag.retained {{ background: #fff7e6; color: #fa8c16; }}
+.tag.retained-count {{ background: #fff0f6; color: #eb2f96; font-size: 10px; }}
+
+/* 留存股样式 */
+.entry-original {{
+    color: #722ed1;
+    font-weight: 600;
+}}
+.ret-main {{
+    font-weight: 700;
+}}
+.ret-label {{
+    font-size: 10px;
+    color: #999;
+}}
+.prev-return {{
+    font-size: 10px;
+    color: #888;
+    margin-top: 2px;
+}}
 
 /* 排名徽章 */
 .rank-badge {{
@@ -968,6 +1029,41 @@ body {{
 .stock-card:hover {{
     transform: translateY(-3px);
     box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}}
+
+/* 留存股卡片样式 */
+.stock-card.retained-card {{
+    border: 2px solid #fa8c16;
+    background: linear-gradient(135deg, #fffbe6 0%, #ffffff 30%);
+}}
+.retained-badge-card {{
+    font-size: 12px;
+    background: linear-gradient(135deg, #fa8c16, #faad14);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    vertical-align: middle;
+    margin-left: 6px;
+}}
+.retained-info-block {{
+    background: #fff7e6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 12px;
+}}
+.retained-entry {{
+    color: #722ed1;
+    font-weight: 600;
+}}
+.retained-history {{
+    font-size: 11px;
+    color: #888;
+    margin-top: 4px;
+}}
+.ret-label-card {{
+    font-size: 11px;
+    color: #999;
 }}
 
 .stock-card-header {{
