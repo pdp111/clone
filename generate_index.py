@@ -9,7 +9,8 @@ import json
 import os
 from datetime import datetime
 
-WORKSPACE = '/workspace'
+# 修改为当前脚本所在目录，而不是固定的 /workspace
+WORKSPACE = os.path.dirname(os.path.abspath(__file__))
 POOL_FILE = os.path.join(WORKSPACE, 'stock_pool_history.json')
 ANALYSIS_FILE = os.path.join(WORKSPACE, 'latest_analysis.json')
 OUTPUT_FILE = os.path.join(WORKSPACE, 'index.html')
@@ -164,7 +165,10 @@ def generate_signals_tab(analysis_data):
         return '<p class="empty-tip">暂无买入信号数据</p>'
 
     signals = analysis_data
-    update_time = '最近检测'
+    # 从第一条信号获取更新时间，如果没有则使用当前时间
+    update_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+    if len(signals) > 0 and 'detect_time' in signals[0]:
+        update_time = signals[0]['detect_time']
 
     # 统计
     strong_count = sum(1 for s in signals if s['signal_score'] >= 50)
@@ -302,6 +306,10 @@ def generate_report_tab(pool_data):
         ret_class = 'up' if ret_pct > 0 else 'down' if ret_pct < 0 else 'flat'
         ret_sign = '+' if ret_pct > 0 else ''
 
+        # Get logic fields with defaults if missing
+        potential_logic = s.get('potential_logic', '暂无分析')
+        tech_logic = s.get('tech_logic', '暂无技术面分析')
+
         cards_html += f'''
         <div class="stock-card">
             <div class="stock-card-header">
@@ -348,16 +356,16 @@ def generate_report_tab(pool_data):
                     </div>
                     <div class="info-item">
                         <span class="info-label">量比</span>
-                        <span class="info-value">{s['volume_ratio']:.2f}</span>
+                        <span class="info-value">{s.get('volume_ratio', 0):.2f}</span>
                     </div>
                 </div>
                 <div class="logic-section">
                     <div class="logic-title">🎯 潜力逻辑</div>
-                    <p class="logic-text">{s['potential_logic']}</p>
+                    <p class="logic-text">{potential_logic}</p>
                 </div>
                 <div class="logic-section">
                     <div class="logic-title">📊 技术面逻辑</div>
-                    <p class="logic-text">{s['tech_logic']}</p>
+                    <p class="logic-text">{tech_logic}</p>
                 </div>
             </div>
         </div>
@@ -367,7 +375,7 @@ def generate_report_tab(pool_data):
     <div class="tab-content" id="tab-report">
         <div class="report-intro">
             <h3>📈 第{period}期高潜力股票池报告</h3>
-            <p>从沪深主板+创业板3500+只股票中，基于六大技术维度（均线趋势、MACD动量、KDJ位置、布林带空间、量能变化、回调幅度）综合评分筛选。优先展示半年涨幅潜力≥40%的股票。</p>
+            <p>从沪深主板+创业板3500+只股票中，基于六大技术维度（均线趋势、MACD动量、KDJ位置、布林带空间、量能变化、回��幅度）综合评分筛选。优先展示半年涨幅潜力≥40%的股票。</p>
         </div>
         <div class="stock-cards-grid">
             {cards_html}

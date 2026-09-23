@@ -14,11 +14,15 @@ import pandas as pd
 from datetime import datetime
 import os
 
-POOL_FILE = '/workspace/stock_pool_history.json'
+POOL_FILE = './stock_pool_history.json'
+SCREEN_FILE = './stock_screen_results.csv'
+
+# 确保工作目录存在
+os.makedirs('./data', exist_ok=True)
 
 def init_pool():
     """初始化票池（第1期）"""
-    df = pd.read_csv('/workspace/stock_screen_results.csv', dtype={'代码': str})
+    df = pd.read_csv(SCREEN_FILE, dtype={'代码': str})
     df['代码'] = df['代码'].apply(lambda x: x.zfill(6))
     
     top10 = df.head(10)

@@ -13,6 +13,8 @@ import time
 import warnings
 warnings.filterwarnings('ignore')
 
+# 确保工作目录存在
+os.makedirs('/workspace', exist_ok=True)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 200)
 
